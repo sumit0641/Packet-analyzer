@@ -134,12 +134,12 @@ TLS Client Hello:
                     └─────────────┘
 ```
 
-### Two Versions
+### Current Status
 
-| Version | File | Use Case |
-|---------|------|----------|
-| Simple (Single-threaded) | `src/main_working.cpp` | Learning, small captures |
-| Multi-threaded | `src/dpi_mt.cpp` | Production, large captures |
+The repository currently contains a Java prototype of the multi-threaded
+design. The CMake target exposes the Java source files to IDEs, but the
+prototype is not yet a complete runnable build. The PCAP files in the root
+directory are sample input and output data.
 
 ---
 
@@ -828,33 +828,14 @@ public static Optional<String> extract(byte[] payload, int length) {
 ### The Blocking Flow
 
 ```
-Packet arrives
-      │
-      ▼
-┌─────────────────────────────────┐
-│ Is source IP in blocked list?  │──Yes──► DROP
-└───────────────┬─────────────────┘
-                │No
-                ▼
-┌─────────────────────────────────┐
-│ Is app type in blocked list?   │──Yes──► DROP
-└───────────────┬─────────────────┘
-                │No
-                ▼
-┌─────────────────────────────────┐
-│ Does SNI match blocked domain? │──Yes──► DROP
-└───────────────┬─────────────────┘
-                │No
-                ▼
-            FORWARD
-```
-
-### Flow-Based Blocking
-
-**Important:** We block at the *flow* level, not packet level.
-
-```
-Connection to YouTube:
+packet_analyzer/
+├── include/                    # Current Java prototype sources
+│   ├── connection_tracker.java # Per-flow and global connection tracking
+│   ├── dpi_engine.java         # Pipeline orchestration
+│   └── fast_path.java          # Packet inspection and rule processing
+├── dpi_engine                  # Existing prebuilt binary artifact
+├── CMakeLists.txt              # IDE/source target configuration
+├── output.pcap                 # Example filtered capture
   Packet 1 (SYN)           → No SNI yet, FORWARD
   Packet 2 (SYN-ACK)       → No SNI yet, FORWARD  
   Packet 3 (ACK)           → No SNI yet, FORWARD
@@ -878,49 +859,28 @@ Connection to YouTube:
 
 ### Prerequisites
 
-- **macOS/Linux or Windows with Java JDK 11+ installed
-- No external libraries needed!
+- CMake 3.16 or newer, for project discovery
+- Java JDK 16 or newer, because the prototype uses records
 
 ### Build Commands
 
-**Simple Version:**
+**Configure the project:**
 ```bash
-javac -d bin src/*.java
+cmake -S . -B build
 ```
 
-**Multi-threaded Version:**
-```bash
-java -cp bin MainWorking test_dpi.pcap output.pcap
-```
+The current Java files are incomplete and are not yet a compilable application.
+The CMake target only exposes those files to IDEs and does not produce an
+executable.
 
 ### Running
 
-**Basic usage:**
-```bash
-./dpi_engine test_dpi.pcap output.pcap
-```
-
-**With blocking:**
-```bash
-java -cp bin DpiMT test_dpi.pcap output.pcap \
-    --block-app YouTube \
-    --block-app TikTok \
-    --block-ip 192.168.1.50 \
-    --block-domain facebook
-```
-
-**Configure threads (multi-threaded only):**
-```bash
-python3 generate_test_pcap.py
-# Creates test_dpi.pcap with sample traffic
-```
+No supported command-line runner is currently included.
 
 ### Creating Test Data
 
-```bash
-python3 generate_test_pcap.py
-# Creates test_dpi.pcap with sample traffic
-```
+The sample captures `test_dpi.pcap` and `output.pcap` are already checked into
+the repository for future parser and filtering tests.
 
 ---
 
